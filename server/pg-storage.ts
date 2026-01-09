@@ -1,31 +1,17 @@
-import { drizzle } from "drizzle-orm/neon-http";
-import { neon } from "@neondatabase/serverless";
+import { drizzle } from "drizzle-orm/neon-serverless";
+import { Pool } from "@neondatabase/serverless";
 import type { IStorage } from "./storage";
-import type { User, InsertUser, DiceRoll, InsertDiceRoll, UpdateDiceRoll } from "@shared/schema";
-import { users, diceRolls } from "@shared/schema";
+import type { DiceRoll, InsertDiceRoll, UpdateDiceRoll } from "@shared/schema";
+import { diceRolls } from "@shared/schema";
 import { eq } from "drizzle-orm";
+import * as schema from "@shared/schema";
 
 export class PostgresStorage implements IStorage {
   private db;
 
   constructor(databaseUrl: string) {
-    const sql = neon(databaseUrl);
-    this.db = drizzle(sql);
-  }
-
-  async getUser(id: string): Promise<User | undefined> {
-    const result = await this.db.select().from(users).where(eq(users.id, id));
-    return result[0];
-  }
-
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    const result = await this.db.select().from(users).where(eq(users.username, username));
-    return result[0];
-  }
-
-  async createUser(insertUser: InsertUser): Promise<User> {
-    const result = await this.db.insert(users).values(insertUser).returning();
-    return result[0];
+    const pool = new Pool({ connectionString: databaseUrl });
+    this.db = drizzle(pool, { schema });
   }
 
   async getDiceRoll(sessionId: string): Promise<DiceRoll | undefined> {

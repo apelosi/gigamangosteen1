@@ -1,26 +1,12 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp, integer } from "drizzle-orm/pg-core";
+import { pgTable, varchar, timestamp, integer, text } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-export const users = pgTable("users", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  username: text("username").notNull().unique(),
-  password: text("password").notNull(),
-});
-
-export const insertUserSchema = createInsertSchema(users).pick({
-  username: true,
-  password: true,
-});
-
-export type InsertUser = z.infer<typeof insertUserSchema>;
-export type User = typeof users.$inferSelect;
-
 export const diceRolls = pgTable("dice_rolls", {
-  sessionId: varchar("session_id").primaryKey().default(sql`gen_random_uuid()`),
-  createdAt: timestamp("created_at").notNull().default(sql`now()`),
-  lastUpdated: timestamp("last_updated").notNull().default(sql`now()`),
+  sessionId: varchar("session_id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  createdAt: timestamp("created_at").notNull().$defaultFn(() => new Date()),
+  lastUpdated: timestamp("last_updated").notNull().$defaultFn(() => new Date()),
   rolls: text("rolls").notNull().default(""),
   sides: integer("sides"),
 });

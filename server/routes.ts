@@ -18,10 +18,11 @@ export async function registerRoutes(
       const diceRoll = await storage.createDiceRoll(validatedData);
       res.status(201).json(diceRoll);
     } catch (error: any) {
+      console.error("Error creating dice roll:", error);
       if (error.name === "ZodError") {
         res.status(400).json({ message: fromError(error).toString() });
       } else {
-        res.status(500).json({ message: "Internal server error" });
+        res.status(500).json({ message: "Internal server error", error: error.message });
       }
     }
   });
