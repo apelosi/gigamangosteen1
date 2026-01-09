@@ -1,6 +1,6 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { storage } from "./storage";
+import { getStorage } from "./storage";
 import { insertDiceRollSchema, updateDiceRollSchema } from "@shared/schema";
 import { fromError } from "zod-validation-error";
 
@@ -13,6 +13,7 @@ export async function registerRoutes(
   // Create a new dice roll session
   app.post("/api/dice-rolls", async (req, res) => {
     try {
+      const storage = await getStorage();
       const validatedData = insertDiceRollSchema.parse(req.body);
       const diceRoll = await storage.createDiceRoll(validatedData);
       res.status(201).json(diceRoll);
@@ -28,6 +29,7 @@ export async function registerRoutes(
   // Get a dice roll session by ID
   app.get("/api/dice-rolls/:sessionId", async (req, res) => {
     try {
+      const storage = await getStorage();
       const { sessionId } = req.params;
       const diceRoll = await storage.getDiceRoll(sessionId);
       if (!diceRoll) {
@@ -43,6 +45,7 @@ export async function registerRoutes(
   // Update a dice roll session (add new roll)
   app.patch("/api/dice-rolls/:sessionId", async (req, res) => {
     try {
+      const storage = await getStorage();
       const { sessionId } = req.params;
       const validatedData = updateDiceRollSchema.parse(req.body);
       const diceRoll = await storage.updateDiceRoll(sessionId, validatedData);

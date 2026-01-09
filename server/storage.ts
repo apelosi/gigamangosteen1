@@ -76,7 +76,9 @@ export class MemStorage implements IStorage {
 }
 
 // Use PostgreSQL storage if NETLIFY_DATABASE_URL is set, otherwise use MemStorage
-async function createStorage(): Promise<IStorage> {
+let storageInstance: IStorage | null = null;
+
+async function initializeStorage(): Promise<IStorage> {
   const databaseUrl = process.env.NETLIFY_DATABASE_URL;
 
   if (databaseUrl) {
@@ -87,4 +89,9 @@ async function createStorage(): Promise<IStorage> {
   return new MemStorage();
 }
 
-export const storage = await createStorage();
+export async function getStorage(): Promise<IStorage> {
+  if (!storageInstance) {
+    storageInstance = await initializeStorage();
+  }
+  return storageInstance;
+}
