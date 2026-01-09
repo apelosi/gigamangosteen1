@@ -530,34 +530,50 @@ export default function Home() {
               </div>
             </div>
           </Card>
-
-          {/* Tallies Card */}
-          <Card className="w-full lg:w-80 p-6 shadow-xl">
-            <h2 className="text-xl font-medium text-center mb-4 text-foreground">
-              Results
-            </h2>
-            <div className="space-y-2">
-              {Array.from({ length: displaySides }, (_, i) => i + 1).map((num) => (
-                <div
-                  key={num}
-                  className="flex items-center justify-between p-3 bg-muted/50 rounded-lg"
-                >
-                  <span className="text-lg font-medium">{num}:</span>
-                  <span className="text-lg font-bold text-primary">{tallies[num] || 0}</span>
-                </div>
-              ))}
-            </div>
-            {hasTallies() && (
-              <div className="mt-4 pt-4 border-t border-border">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-muted-foreground">Total Rolls:</span>
-                  <span className="text-lg font-bold">{getRollsArray().length}</span>
-                </div>
-              </div>
-            )}
-          </Card>
         </div>
       </main>
+
+      {/* Database Debug Section */}
+      {sessionData && (
+        <section className="w-full max-w-4xl mx-auto px-4 py-8 border-t border-border/50">
+          <div className="mb-4">
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+              Database Record (Development)
+            </h3>
+            <p className="text-xs text-muted-foreground mt-1">
+              Verify that data is being saved to the database
+            </p>
+          </div>
+          <Card className="p-4">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border">
+                    <th className="text-left py-2 px-3 font-semibold text-muted-foreground">session_id</th>
+                    <th className="text-left py-2 px-3 font-semibold text-muted-foreground">created_at</th>
+                    <th className="text-left py-2 px-3 font-semibold text-muted-foreground">last_updated</th>
+                    <th className="text-left py-2 px-3 font-semibold text-muted-foreground">rolls</th>
+                    <th className="text-left py-2 px-3 font-semibold text-muted-foreground">sides</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td className="py-2 px-3 font-mono text-xs break-all">{sessionData.sessionId}</td>
+                    <td className="py-2 px-3 font-mono text-xs whitespace-nowrap">
+                      {new Date(sessionData.createdAt).toLocaleString()}
+                    </td>
+                    <td className="py-2 px-3 font-mono text-xs whitespace-nowrap">
+                      {new Date(sessionData.lastUpdated).toLocaleString()}
+                    </td>
+                    <td className="py-2 px-3 font-mono text-xs">{sessionData.rolls || "(empty)"}</td>
+                    <td className="py-2 px-3 font-mono text-xs">{sessionData.sides ?? "null"}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        </section>
+      )}
 
       <Footer />
 
