@@ -44,99 +44,155 @@ function IsometricDieSVG({
   result: number | null;
   isRolling: boolean;
 }) {
+  // Helper to get unique neighboring numbers for the other visible faces
+  const getOtherFaces = (res: number) => {
+    const face2 = (res % sides) + 1;
+    let face3 = ((res + 1) % sides) + 1;
+    if (face3 === face2) face3 = (face3 % sides) + 1;
+    if (face3 === res) face3 = (face3 % sides) + 1;
+    return [face2, face3];
+  };
+
+  const otherFaces = result ? getOtherFaces(result) : [null, null];
+
   return (
     <div
-      className={`relative w-full h-full flex items-center justify-center ${
-        isRolling ? "animate-die-roll" : ""
-      }`}
+      className={`relative w-full h-full flex items-center justify-center ${isRolling ? "animate-die-roll" : ""
+        }`}
       style={{ perspective: "1000px", transformStyle: "preserve-3d" }}
     >
       <svg
         viewBox="0 0 200 200"
-        className="w-full h-full max-w-[280px] max-h-[280px] md:max-w-[320px] md:max-h-[320px] lg:max-w-[360px] lg:max-h-[360px]"
+        className="w-full h-full max-w-[300px] max-h-[300px]"
         aria-label={result ? `Die showing ${result}` : "Die ready to roll"}
         role="img"
       >
         <defs>
-          <linearGradient id="topFace" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="hsl(174, 72%, 50%)" />
-            <stop offset="100%" stopColor="hsl(174, 72%, 40%)" />
+          {/* Main Material Gradients */}
+          <linearGradient id="topFaceG" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#ffffff" />
+            <stop offset="100%" stopColor="#f8f8f8" />
           </linearGradient>
-          <linearGradient id="leftFace" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="hsl(174, 72%, 35%)" />
-            <stop offset="100%" stopColor="hsl(174, 72%, 28%)" />
+          <linearGradient id="leftFaceG" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#f0f0f0" />
+            <stop offset="100%" stopColor="#e0e0e0" />
           </linearGradient>
-          <linearGradient id="rightFace" x1="100%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stopColor="hsl(174, 72%, 45%)" />
-            <stop offset="100%" stopColor="hsl(174, 72%, 38%)" />
+          <linearGradient id="rightFaceG" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#e8e8e8" />
+            <stop offset="100%" stopColor="#d8d8d8" />
           </linearGradient>
-          <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
-            <feDropShadow dx="4" dy="8" stdDeviation="8" floodOpacity="0.3" />
+
+          {/* Deep Engraving Filter for Numbers */}
+          <filter id="deepEngrave" x="-20%" y="-20%" width="140%" height="140%">
+            <feOffset dx="-0.5" dy="-0.5" in="SourceAlpha" result="offset" />
+            <feGaussianBlur stdDeviation="0.4" result="blur" />
+            <feComposite operator="out" in="SourceGraphic" in2="offset" result="inverse" />
+            <feFlood floodColor="black" floodOpacity="1" result="color" />
+            <feComposite operator="in" in="color" in2="inverse" result="shadow" />
+
+            <feOffset dx="0.5" dy="0.5" in="SourceAlpha" result="lightOffset" />
+            <feGaussianBlur stdDeviation="0.2" result="lightBlur" />
+            <feComposite operator="out" in="SourceGraphic" in2="lightOffset" result="lightInverse" />
+            <feFlood floodColor="white" floodOpacity="0.4" result="lightColor" />
+            <feComposite operator="in" in="lightColor" in2="lightInverse" result="highlight" />
+
+            <feMerge>
+              <feMergeNode in="SourceGraphic" />
+              <feMergeNode in="shadow" />
+              <feMergeNode in="highlight" />
+            </feMerge>
           </filter>
+
+          {/* Soft Ground Shadow */}
+          <radialGradient id="groundShadow" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor="#000000" stopOpacity="0.15" />
+            <stop offset="100%" stopColor="#000000" stopOpacity="0" />
+          </radialGradient>
         </defs>
 
-        <g filter="url(#shadow)">
-          <polygon
-            points="100,30 170,70 100,110 30,70"
-            fill="url(#topFace)"
-            stroke="hsl(174, 72%, 55%)"
+        {/* Global Ground Shadow */}
+        <ellipse cx="100" cy="180" rx="70" ry="18" fill="url(#groundShadow)" />
+
+        {/* The Rounded Die Geometry */}
+        <g strokeLinejoin="round" strokeLinecap="round">
+          {/* Rounded Isometric Cube Paths */}
+          {/* Using elliptical arcs for true filleted corners */}
+
+          {/* LEFT FACE */}
+          <path
+            d="M32,78 Q30,80 30,85 L30,140 Q30,145 35,147 L95,178 Q100,180 100,175 L100,115 L32,78"
+            fill="url(#leftFaceG)"
+            stroke="#d0d0d0"
             strokeWidth="1"
           />
-          <polygon
-            points="30,70 100,110 100,180 30,140"
-            fill="url(#leftFace)"
-            stroke="hsl(174, 72%, 45%)"
+
+          {/* RIGHT FACE */}
+          <path
+            d="M168,78 Q170,80 170,85 L170,140 Q170,145 165,147 L105,178 Q100,180 100,175 L100,115 L168,78"
+            fill="url(#rightFaceG)"
+            stroke="#c0c0c0"
             strokeWidth="1"
           />
-          <polygon
-            points="170,70 100,110 100,180 170,140"
-            fill="url(#rightFace)"
-            stroke="hsl(174, 72%, 50%)"
+
+          {/* TOP FACE */}
+          <path
+            d="M100,45 Q105,43 110,46 L165,77 Q170,80 165,83 L105,114 Q100,117 95,114 L35,83 Q30,80 35,77 L90,46 Q95,43 100,45"
+            fill="url(#topFaceG)"
+            stroke="#e0e0e0"
             strokeWidth="1"
           />
+
+          {/* Specular Highlights on edges */}
+          <path d="M38,77 L95,46" stroke="white" strokeWidth="2.5" strokeOpacity="0.8" />
+          <path d="M105,46 L162,77" stroke="white" strokeWidth="1.5" strokeOpacity="0.4" />
+          <path d="M100,115 L165,80" stroke="white" strokeWidth="1" strokeOpacity="0.3" />
         </g>
 
         {result !== null && !isRolling && (
-          <g className="animate-bounce-in">
+          <g filter="url(#deepEngrave)">
+            {/* Top Face Number - Calculated center (100, 80) */}
             <text
               x="100"
-              y="78"
+              y="80"
               textAnchor="middle"
-              dominantBaseline="middle"
-              fill="white"
-              fontSize="28"
-              fontWeight="bold"
-              fontFamily="Roboto, sans-serif"
+              dominantBaseline="central"
+              fill="#080808"
+              fontSize="36"
+              fontWeight="400"
+              fontFamily="'Playfair Display', serif"
+              transform="translate(100, 80) scale(1, 0.5) rotate(-45) translate(-100, -80) translate(0, 5)"
             >
               {result}
             </text>
+
+            {/* Left Face Number - Calculated center (65, 130) */}
             <text
               x="65"
-              y="125"
+              y="130"
               textAnchor="middle"
-              dominantBaseline="middle"
-              fill="white"
-              fillOpacity="0.9"
-              fontSize="20"
-              fontWeight="bold"
-              fontFamily="Roboto, sans-serif"
-              transform="rotate(-30, 65, 125)"
+              dominantBaseline="central"
+              fill="#101010"
+              fontSize="30"
+              fontWeight="400"
+              fontFamily="'Playfair Display', serif"
+              transform="translate(65, 130) skewY(26) translate(-65, -130)"
             >
-              {result}
+              {otherFaces[0]}
             </text>
+
+            {/* Right Face Number - Calculated center (135, 130) */}
             <text
               x="135"
-              y="125"
+              y="130"
               textAnchor="middle"
-              dominantBaseline="middle"
-              fill="white"
-              fillOpacity="0.9"
-              fontSize="20"
-              fontWeight="bold"
-              fontFamily="Roboto, sans-serif"
-              transform="rotate(30, 135, 125)"
+              dominantBaseline="central"
+              fill="#101010"
+              fontSize="30"
+              fontWeight="400"
+              fontFamily="'Playfair Display', serif"
+              transform="translate(135, 130) skewY(-26) translate(-135, -130)"
             >
-              {result}
+              {otherFaces[1]}
             </text>
           </g>
         )}
@@ -145,11 +201,13 @@ function IsometricDieSVG({
           x="100"
           y="195"
           textAnchor="middle"
-          fill="hsl(200, 10%, 45%)"
-          fontSize="12"
-          fontFamily="Roboto, sans-serif"
+          fill="rgba(0,0,0,0.2)"
+          fontSize="11"
+          fontWeight="700"
+          fontFamily="'Outfit', sans-serif"
+          letterSpacing="0.2em"
         >
-          D{sides}
+          D{sides} PREMIUM
         </text>
       </svg>
     </div>
@@ -159,11 +217,10 @@ function IsometricDieSVG({
 function Header({ isScrolled }: { isScrolled: boolean }) {
   return (
     <header
-      className={`fixed top-0 left-0 right-0 z-50 h-16 transition-all duration-300 ${
-        isScrolled
+      className={`fixed top-0 left-0 right-0 z-50 h-16 transition-all duration-300 ${isScrolled
           ? "bg-sidebar/95 backdrop-blur-md shadow-lg"
           : "bg-sidebar"
-      }`}
+        }`}
       role="banner"
     >
       <div className="h-full px-4 md:px-8 lg:px-12 flex items-center">
