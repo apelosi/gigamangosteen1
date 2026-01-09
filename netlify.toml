@@ -1,16 +1,19 @@
 [build]
-  command = "npm install && npm run build"
+  command = "npm install && npx vite build"
   publish = "dist/public"
   base = "."
 
+[dev]
+  framework = "#static"
+  targetPort = 5000
+
 [functions]
-  directory = "dist"
-  node_bundler = "none"
-  included_files = ["dist/**"]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
 
 [[redirects]]
   from = "/api/*"
-  to = "/.netlify/functions/index/:splat"
+  to = "/.netlify/functions/api"
   status = 200
 
 [[redirects]]
