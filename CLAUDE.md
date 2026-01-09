@@ -223,3 +223,4 @@ None currently.
 - 2026-01-09: Added dice roll tracking feature with Neon DB integration - tracks sessions, roll tallies, with smart reset logic
 - 2026-01-09: Successfully set up Neon DB via Netlify CLI (v23.12.0 with --assume-no flag), pushed schema, created .env file, verified database persistence
 - 2026-01-09: Standardized environment variable to use `NETLIFY_DATABASE_URL` consistently across all environments (local and production)
+- 2026-01-10: Removed unnecessary users table and fixed PostgreSQL storage using Pool connection instead of neon-http, added dotenv for production .env loading
