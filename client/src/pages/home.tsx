@@ -2,7 +2,10 @@ import { useState, useEffect, useCallback } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
-import { Dices } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Dices, RotateCcw } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { DiceRoll } from "@shared/schema";
 
 function LogoSVG({ className }: { className?: string }) {
   return (
@@ -253,11 +256,73 @@ function Footer() {
   );
 }
 
+// API functions
+async function createSession(): Promise<DiceRoll> {
+  const response = await fetch("/api/dice-rolls", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ rolls: "", sides: null }),
+  });
+  if (!response.ok) throw new Error("Failed to create session");
+  return response.json();
+}
+
+async function updateSession(sessionId: string, rolls: string, sides: number): Promise<DiceRoll> {
+  const response = await fetch(`/api/dice-rolls/${sessionId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ rolls, sides }),
+  });
+  if (!response.ok) throw new Error("Failed to update session");
+  return response.json();
+}
+
 export default function Home() {
   const [sides, setSides] = useState(6);
+  const [pendingSides, setPendingSides] = useState<number | null>(null);
   const [result, setResult] = useState<number | null>(null);
   const [isRolling, setIsRolling] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+
+  const queryClient = useQueryClient();
+
+  // Initialize session on mount
+  useEffect(() => {
+    createSession().then((session) => {
+      setSessionId(session.sessionId);
+    });
+  }, []);
+
+  const createSessionMutation = useMutation({
+    mutationFn: createSession,
+    onSuccess: (data) => {
+      setSessionId(data.sessionId);
+      queryClient.invalidateQueries({ queryKey: ["diceRoll", data.sessionId] });
+    },
+  });
+
+  const updateSessionMutation = useMutation({
+    mutationFn: ({ sessionId, rolls, sides }: { sessionId: string; rolls: string; sides: number }) =>
+      updateSession(sessionId, rolls, sides),
+    onSuccess: () => {
+      if (sessionId) {
+        queryClient.invalidateQueries({ queryKey: ["diceRoll", sessionId] });
+      }
+    },
+  });
+
+  const { data: sessionData } = useQuery({
+    queryKey: ["diceRoll", sessionId],
+    queryFn: async () => {
+      if (!sessionId) return null;
+      const response = await fetch(`/api/dice-rolls/${sessionId}`);
+      if (!response.ok) return null;
+      return response.json() as Promise<DiceRoll>;
+    },
+    enabled: !!sessionId,
+  });
 
   useEffect(() => {
     const handleScroll = () => {
@@ -267,8 +332,44 @@ export default function Home() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  const getRollsArray = (): number[] => {
+    if (!sessionData?.rolls || sessionData.rolls === "") return [];
+    return sessionData.rolls.split(",").map((r) => parseInt(r, 10));
+  };
+
+  const getTallies = (): Record<number, number> => {
+    const rolls = getRollsArray();
+    const maxSides = sessionData?.sides || sides;
+    const tallies: Record<number, number> = {};
+    for (let i = 1; i <= maxSides; i++) {
+      tallies[i] = 0;
+    }
+    rolls.forEach((roll) => {
+      if (roll >= 1 && roll <= maxSides) {
+        tallies[roll]++;
+      }
+    });
+    return tallies;
+  };
+
+  const hasTallies = (): boolean => {
+    return getRollsArray().length > 0;
+  };
+
+  const resetSession = useCallback(() => {
+    createSessionMutation.mutate(undefined, {
+      onSuccess: (data) => {
+        setResult(null);
+        if (pendingSides !== null) {
+          setSides(pendingSides);
+          setPendingSides(null);
+        }
+      },
+    });
+  }, [createSessionMutation, pendingSides]);
+
   const rollDie = useCallback(() => {
-    if (isRolling) return;
+    if (isRolling || !sessionId) return;
     setIsRolling(true);
     setResult(null);
 
@@ -276,15 +377,51 @@ export default function Home() {
       const newResult = Math.floor(Math.random() * sides) + 1;
       setResult(newResult);
       setIsRolling(false);
+
+      // Update session with new roll
+      const currentRolls = getRollsArray();
+      const newRolls = [...currentRolls, newResult];
+      const rollsString = newRolls.join(",");
+
+      // Set sides on first roll if not set
+      const sidesValue = sessionData?.sides || sides;
+
+      updateSessionMutation.mutate({
+        sessionId,
+        rolls: rollsString,
+        sides: sidesValue,
+      });
     }, 3000);
-  }, [isRolling, sides]);
+  }, [isRolling, sides, sessionId, sessionData, updateSessionMutation]);
 
   const handleSidesChange = (value: number[]) => {
-    setSides(value[0]);
-    if (!isRolling) {
-      setResult(null);
+    const newSides = value[0];
+
+    // If there are tallies, show confirmation dialog
+    if (hasTallies()) {
+      setPendingSides(newSides);
+      setShowConfirmDialog(true);
+    } else {
+      // No tallies, just change sides without confirmation
+      setSides(newSides);
+      if (!isRolling) {
+        setResult(null);
+      }
     }
   };
+
+  const handleConfirmSidesChange = () => {
+    setShowConfirmDialog(false);
+    resetSession();
+  };
+
+  const handleCancelSidesChange = () => {
+    setShowConfirmDialog(false);
+    setPendingSides(null);
+  };
+
+  const tallies = getTallies();
+  const displaySides = sessionData?.sides || sides;
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -295,93 +432,150 @@ export default function Home() {
         role="main"
         aria-label="Die Roller"
       >
-        <Card className="w-full max-w-md md:max-w-lg lg:max-w-xl p-6 md:p-8 shadow-xl">
-          <h1 className="text-2xl md:text-3xl font-medium text-center mb-6 text-foreground">
-            Roll the Die
-          </h1>
+        <div className="flex flex-col lg:flex-row gap-6 w-full max-w-6xl">
+          <Card className="flex-1 p-6 md:p-8 shadow-xl">
+            <h1 className="text-2xl md:text-3xl font-medium text-center mb-6 text-foreground">
+              Roll the Die
+            </h1>
 
-          <div
-            className="w-64 h-64 md:w-72 md:h-72 lg:w-80 lg:h-80 mx-auto mb-8"
-            aria-live="polite"
-            aria-atomic="true"
-          >
-            <IsometricDieSVG sides={sides} result={result} isRolling={isRolling} />
-          </div>
-
-          {result !== null && !isRolling && (
-            <p
-              className="text-center text-3xl md:text-4xl font-bold text-primary mb-6"
-              role="status"
-              aria-label={`Result: ${result}`}
-              data-testid="text-result"
+            <div
+              className="w-64 h-64 md:w-72 md:h-72 lg:w-80 lg:h-80 mx-auto mb-8"
+              aria-live="polite"
+              aria-atomic="true"
             >
-              You rolled: {result}
-            </p>
-          )}
-
-          <div className="space-y-6">
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <label
-                  htmlFor="sides-slider"
-                  className="text-sm font-medium text-foreground"
-                >
-                  Number of Sides
-                </label>
-                <span
-                  className="text-2xl font-bold text-primary"
-                  aria-live="polite"
-                  data-testid="text-sides-count"
-                >
-                  {sides}
-                </span>
-              </div>
-              <Slider
-                id="sides-slider"
-                min={6}
-                max={24}
-                step={1}
-                value={[sides]}
-                onValueChange={handleSidesChange}
-                disabled={isRolling}
-                aria-label="Select number of sides"
-                aria-valuemin={6}
-                aria-valuemax={24}
-                aria-valuenow={sides}
-                data-testid="slider-sides"
-                className="py-2"
-              />
-              <div className="flex justify-between text-xs text-muted-foreground">
-                <span>6</span>
-                <span>24</span>
-              </div>
+              <IsometricDieSVG sides={sides} result={result} isRolling={isRolling} />
             </div>
 
-            <Button
-              onClick={rollDie}
-              disabled={isRolling}
-              size="lg"
-              className="w-full h-14 text-lg font-medium rounded-full shadow-lg transition-all duration-300 focus-visible:ring-2 focus-visible:ring-offset-2"
-              aria-label={isRolling ? "Rolling..." : "Roll the die"}
-              data-testid="button-roll"
-            >
-              {isRolling ? (
-                <span className="flex items-center gap-2">
-                  <Dices className="w-5 h-5 animate-spin" />
-                  Rolling...
-                </span>
-              ) : (
-                <span className="flex items-center gap-2">
-                  <Dices className="w-5 h-5" />
-                  Roll D{sides}
-                </span>
-              )}
-            </Button>
-          </div>
-        </Card>
+            {result !== null && !isRolling && (
+              <p
+                className="text-center text-3xl md:text-4xl font-bold text-primary mb-6"
+                role="status"
+                aria-label={`Result: ${result}`}
+                data-testid="text-result"
+              >
+                You rolled: {result}
+              </p>
+            )}
+
+            <div className="space-y-6">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <label
+                    htmlFor="sides-slider"
+                    className="text-sm font-medium text-foreground"
+                  >
+                    Number of Sides
+                  </label>
+                  <span
+                    className="text-2xl font-bold text-primary"
+                    aria-live="polite"
+                    data-testid="text-sides-count"
+                  >
+                    {sides}
+                  </span>
+                </div>
+                <Slider
+                  id="sides-slider"
+                  min={6}
+                  max={24}
+                  step={1}
+                  value={[sides]}
+                  onValueChange={handleSidesChange}
+                  disabled={isRolling}
+                  aria-label="Select number of sides"
+                  aria-valuemin={6}
+                  aria-valuemax={24}
+                  aria-valuenow={sides}
+                  data-testid="slider-sides"
+                  className="py-2"
+                />
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>6</span>
+                  <span>24</span>
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <Button
+                  onClick={rollDie}
+                  disabled={isRolling}
+                  size="lg"
+                  className="flex-1 h-14 text-lg font-medium rounded-full shadow-lg transition-all duration-300 focus-visible:ring-2 focus-visible:ring-offset-2"
+                  aria-label={isRolling ? "Rolling..." : "Roll the die"}
+                  data-testid="button-roll"
+                >
+                  {isRolling ? (
+                    <span className="flex items-center gap-2">
+                      <Dices className="w-5 h-5 animate-spin" />
+                      Rolling...
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-2">
+                      <Dices className="w-5 h-5" />
+                      Roll D{sides}
+                    </span>
+                  )}
+                </Button>
+                <Button
+                  onClick={resetSession}
+                  disabled={isRolling}
+                  variant="outline"
+                  size="lg"
+                  className="h-14 px-6 rounded-full"
+                  aria-label="Reset session"
+                  data-testid="button-reset"
+                >
+                  <RotateCcw className="w-5 h-5" />
+                </Button>
+              </div>
+            </div>
+          </Card>
+
+          {/* Tallies Card */}
+          <Card className="w-full lg:w-80 p-6 shadow-xl">
+            <h2 className="text-xl font-medium text-center mb-4 text-foreground">
+              Results
+            </h2>
+            <div className="space-y-2">
+              {Array.from({ length: displaySides }, (_, i) => i + 1).map((num) => (
+                <div
+                  key={num}
+                  className="flex items-center justify-between p-3 bg-muted/50 rounded-lg"
+                >
+                  <span className="text-lg font-medium">{num}:</span>
+                  <span className="text-lg font-bold text-primary">{tallies[num] || 0}</span>
+                </div>
+              ))}
+            </div>
+            {hasTallies() && (
+              <div className="mt-4 pt-4 border-t border-border">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-muted-foreground">Total Rolls:</span>
+                  <span className="text-lg font-bold">{getRollsArray().length}</span>
+                </div>
+              </div>
+            )}
+          </Card>
+        </div>
       </main>
 
       <Footer />
+
+      {/* Confirmation Dialog */}
+      <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Change Die Sides?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Changing the number of sides will reset all your current roll tallies and start a new session. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleCancelSidesChange}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmSidesChange}>Continue</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

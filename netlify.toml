@@ -1,7 +1,17 @@
 [build]
-  command = "npm install && npx vite build"
+  command = "npm install && npm run build"
   publish = "dist/public"
   base = "."
+
+[functions]
+  directory = "dist"
+  node_bundler = "none"
+  included_files = ["dist/**"]
+
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/index/:splat"
+  status = 200
 
 [[redirects]]
   from = "/*"
