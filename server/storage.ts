@@ -1,68 +1,70 @@
-import { type Memory, type InsertMemory, type UpdateMemory } from "@shared/schema";
+import { type ObjectMemory, type InsertObjectMemory, type UpdateObjectMemory } from "@shared/schema";
 import { randomUUID } from "crypto";
 
 export interface IStorage {
-  // Memory methods
-  getMemory(id: string): Promise<Memory | undefined>;
-  getMemoriesBySession(sessionId: string): Promise<Memory[]>;
-  getAllMemories(): Promise<Memory[]>;
-  createMemory(memory: InsertMemory): Promise<Memory>;
-  updateMemory(id: string, memory: UpdateMemory): Promise<Memory | undefined>;
+  // Object Memory methods
+  getObjectMemory(id: string): Promise<ObjectMemory | undefined>;
+  getObjectMemoriesBySession(sessionId: string): Promise<ObjectMemory[]>;
+  getAllObjectMemories(): Promise<ObjectMemory[]>;
+  createObjectMemory(memory: InsertObjectMemory): Promise<ObjectMemory>;
+  updateObjectMemory(id: string, memory: UpdateObjectMemory): Promise<ObjectMemory | undefined>;
 }
 
 export class MemStorage implements IStorage {
-  private memories: Map<string, Memory>;
+  private objectMemories: Map<string, ObjectMemory>;
 
   constructor() {
-    this.memories = new Map();
+    this.objectMemories = new Map();
   }
 
-  async getMemory(id: string): Promise<Memory | undefined> {
-    return this.memories.get(id);
+  async getObjectMemory(id: string): Promise<ObjectMemory | undefined> {
+    return this.objectMemories.get(id);
   }
 
-  async getMemoriesBySession(sessionId: string): Promise<Memory[]> {
-    return Array.from(this.memories.values())
+  async getObjectMemoriesBySession(sessionId: string): Promise<ObjectMemory[]> {
+    return Array.from(this.objectMemories.values())
       .filter((m) => m.sessionId === sessionId)
       .sort((a, b) => b.lastUpdated.getTime() - a.lastUpdated.getTime());
   }
 
-  async getAllMemories(): Promise<Memory[]> {
-    return Array.from(this.memories.values()).sort((a, b) =>
+  async getAllObjectMemories(): Promise<ObjectMemory[]> {
+    return Array.from(this.objectMemories.values()).sort((a, b) =>
       b.lastUpdated.getTime() - a.lastUpdated.getTime()
     );
   }
 
-  async createMemory(insertMemory: InsertMemory): Promise<Memory> {
+  async createObjectMemory(insertMemory: InsertObjectMemory): Promise<ObjectMemory> {
     const id = randomUUID();
     const sessionId = insertMemory.sessionId;
     const now = new Date();
-    const memory: Memory = {
+    const objectMemory: ObjectMemory = {
       id,
       sessionId,
       createdAt: now,
       lastUpdated: now,
-      imageBase64: null,
-      imageDescription: null,
-      memory: null,
+      userImageBase64: insertMemory.userImageBase64 || null,
+      objectImageBase64: null,
+      objectDescription: null,
+      objectMemory: null,
     };
-    this.memories.set(id, memory);
-    return memory;
+    this.objectMemories.set(id, objectMemory);
+    return objectMemory;
   }
 
-  async updateMemory(id: string, updateMemory: UpdateMemory): Promise<Memory | undefined> {
-    const existing = this.memories.get(id);
+  async updateObjectMemory(id: string, updateMemory: UpdateObjectMemory): Promise<ObjectMemory | undefined> {
+    const existing = this.objectMemories.get(id);
     if (!existing) {
       return undefined;
     }
-    const updated: Memory = {
+    const updated: ObjectMemory = {
       ...existing,
-      imageBase64: updateMemory.imageBase64 !== undefined ? updateMemory.imageBase64 : existing.imageBase64,
-      imageDescription: updateMemory.imageDescription !== undefined ? updateMemory.imageDescription : existing.imageDescription,
-      memory: updateMemory.memory !== undefined ? updateMemory.memory : existing.memory,
+      userImageBase64: updateMemory.userImageBase64 !== undefined ? updateMemory.userImageBase64 : existing.userImageBase64,
+      objectImageBase64: updateMemory.objectImageBase64 !== undefined ? updateMemory.objectImageBase64 : existing.objectImageBase64,
+      objectDescription: updateMemory.objectDescription !== undefined ? updateMemory.objectDescription : existing.objectDescription,
+      objectMemory: updateMemory.objectMemory !== undefined ? updateMemory.objectMemory : existing.objectMemory,
       lastUpdated: new Date(),
     };
-    this.memories.set(id, updated);
+    this.objectMemories.set(id, updated);
     return updated;
   }
 }

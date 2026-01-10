@@ -1,8 +1,8 @@
 import { drizzle } from "drizzle-orm/neon-serverless";
 import { Pool } from "@neondatabase/serverless";
 import type { IStorage } from "./storage";
-import type { Memory, InsertMemory, UpdateMemory } from "@shared/schema";
-import { memories } from "@shared/schema";
+import type { ObjectMemory, InsertObjectMemory, UpdateObjectMemory } from "@shared/schema";
+import { objectMemories } from "@shared/schema";
 import { eq } from "drizzle-orm";
 import * as schema from "@shared/schema";
 
@@ -14,43 +14,45 @@ export class PostgresStorage implements IStorage {
     this.db = drizzle(pool, { schema });
   }
 
-  async getMemory(id: string): Promise<Memory | undefined> {
-    const result = await this.db.select().from(memories).where(eq(memories.id, id));
+  async getObjectMemory(id: string): Promise<ObjectMemory | undefined> {
+    const result = await this.db.select().from(objectMemories).where(eq(objectMemories.id, id));
     return result[0];
   }
 
-  async getMemoriesBySession(sessionId: string): Promise<Memory[]> {
+  async getObjectMemoriesBySession(sessionId: string): Promise<ObjectMemory[]> {
     const result = await this.db
       .select()
-      .from(memories)
-      .where(eq(memories.sessionId, sessionId))
-      .orderBy(memories.lastUpdated);
+      .from(objectMemories)
+      .where(eq(objectMemories.sessionId, sessionId))
+      .orderBy(objectMemories.lastUpdated);
     return result.reverse(); // Most recent first
   }
 
-  async getAllMemories(): Promise<Memory[]> {
+  async getAllObjectMemories(): Promise<ObjectMemory[]> {
     const result = await this.db
       .select()
-      .from(memories)
-      .orderBy(memories.lastUpdated);
+      .from(objectMemories)
+      .orderBy(objectMemories.lastUpdated);
     return result.reverse(); // Most recent first
   }
 
-  async createMemory(insertMemory: InsertMemory): Promise<Memory> {
-    const result = await this.db.insert(memories).values(insertMemory).returning();
+  async createObjectMemory(insertMemory: InsertObjectMemory): Promise<ObjectMemory> {
+    const result = await this.db.insert(objectMemories).values(insertMemory).returning();
     return result[0];
   }
 
-  async updateMemory(id: string, updateMemory: UpdateMemory): Promise<Memory | undefined> {
+  async updateObjectMemory(id: string, updateMemory: UpdateObjectMemory): Promise<ObjectMemory | undefined> {
+    // Build the update object dynamically to only include fields that are defined
+    const updateData: Record<string, any> = { lastUpdated: new Date() };
+    if (updateMemory.userImageBase64 !== undefined) updateData.userImageBase64 = updateMemory.userImageBase64;
+    if (updateMemory.objectImageBase64 !== undefined) updateData.objectImageBase64 = updateMemory.objectImageBase64;
+    if (updateMemory.objectDescription !== undefined) updateData.objectDescription = updateMemory.objectDescription;
+    if (updateMemory.objectMemory !== undefined) updateData.objectMemory = updateMemory.objectMemory;
+
     const result = await this.db
-      .update(memories)
-      .set({
-        imageBase64: updateMemory.imageBase64,
-        imageDescription: updateMemory.imageDescription,
-        memory: updateMemory.memory,
-        lastUpdated: new Date(),
-      })
-      .where(eq(memories.id, id))
+      .update(objectMemories)
+      .set(updateData)
+      .where(eq(objectMemories.id, id))
       .returning();
     return result[0];
   }

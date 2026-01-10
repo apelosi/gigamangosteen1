@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import Home from "@/pages/home";
 import Capture from "@/pages/capture";
 import Memories from "@/pages/memories";
+import MemoryDetail from "@/pages/memory-detail";
 import Remember from "@/pages/remember";
 import NotFound from "@/pages/not-found";
 
@@ -15,6 +16,7 @@ function Router() {
       <Route path="/" component={Home} />
       <Route path="/capture" component={Capture} />
       <Route path="/memories" component={Memories} />
+      <Route path="/memory/:id" component={MemoryDetail} />
       <Route path="/remember" component={Remember} />
       <Route component={NotFound} />
     </Switch>
