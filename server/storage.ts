@@ -1,50 +1,59 @@
-import { type DiceRoll, type InsertDiceRoll, type UpdateDiceRoll } from "@shared/schema";
+import { type Memory, type InsertMemory, type UpdateMemory } from "@shared/schema";
 import { randomUUID } from "crypto";
 
 export interface IStorage {
-  // Dice roll methods
-  getDiceRoll(sessionId: string): Promise<DiceRoll | undefined>;
-  createDiceRoll(diceRoll: InsertDiceRoll): Promise<DiceRoll>;
-  updateDiceRoll(sessionId: string, diceRoll: UpdateDiceRoll): Promise<DiceRoll | undefined>;
+  // Memory methods
+  getMemory(sessionId: string): Promise<Memory | undefined>;
+  getAllMemories(): Promise<Memory[]>;
+  createMemory(memory: InsertMemory): Promise<Memory>;
+  updateMemory(sessionId: string, memory: UpdateMemory): Promise<Memory | undefined>;
 }
 
 export class MemStorage implements IStorage {
-  private diceRolls: Map<string, DiceRoll>;
+  private memories: Map<string, Memory>;
 
   constructor() {
-    this.diceRolls = new Map();
+    this.memories = new Map();
   }
 
-  async getDiceRoll(sessionId: string): Promise<DiceRoll | undefined> {
-    return this.diceRolls.get(sessionId);
+  async getMemory(sessionId: string): Promise<Memory | undefined> {
+    return this.memories.get(sessionId);
   }
 
-  async createDiceRoll(insertDiceRoll: InsertDiceRoll): Promise<DiceRoll> {
-    const sessionId = randomUUID();
+  async getAllMemories(): Promise<Memory[]> {
+    return Array.from(this.memories.values()).sort((a, b) =>
+      b.lastUpdated.getTime() - a.lastUpdated.getTime()
+    );
+  }
+
+  async createMemory(insertMemory: InsertMemory): Promise<Memory> {
+    const sessionId = insertMemory.sessionId || randomUUID();
     const now = new Date();
-    const diceRoll: DiceRoll = {
+    const memory: Memory = {
       sessionId,
       createdAt: now,
       lastUpdated: now,
-      rolls: insertDiceRoll.rolls || "",
-      sides: insertDiceRoll.sides || null,
+      imageBase64: null,
+      imageDescription: null,
+      memory: null,
     };
-    this.diceRolls.set(sessionId, diceRoll);
-    return diceRoll;
+    this.memories.set(sessionId, memory);
+    return memory;
   }
 
-  async updateDiceRoll(sessionId: string, updateDiceRoll: UpdateDiceRoll): Promise<DiceRoll | undefined> {
-    const existing = this.diceRolls.get(sessionId);
+  async updateMemory(sessionId: string, updateMemory: UpdateMemory): Promise<Memory | undefined> {
+    const existing = this.memories.get(sessionId);
     if (!existing) {
       return undefined;
     }
-    const updated: DiceRoll = {
+    const updated: Memory = {
       ...existing,
-      rolls: updateDiceRoll.rolls,
-      sides: updateDiceRoll.sides !== undefined ? updateDiceRoll.sides : existing.sides,
+      imageBase64: updateMemory.imageBase64 !== undefined ? updateMemory.imageBase64 : existing.imageBase64,
+      imageDescription: updateMemory.imageDescription !== undefined ? updateMemory.imageDescription : existing.imageDescription,
+      memory: updateMemory.memory !== undefined ? updateMemory.memory : existing.memory,
       lastUpdated: new Date(),
     };
-    this.diceRolls.set(sessionId, updated);
+    this.memories.set(sessionId, updated);
     return updated;
   }
 }

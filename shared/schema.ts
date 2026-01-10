@@ -3,24 +3,25 @@ import { pgTable, varchar, timestamp, integer, text } from "drizzle-orm/pg-core"
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-export const diceRolls = pgTable("dice_rolls", {
+export const memories = pgTable("memories", {
   sessionId: varchar("session_id").primaryKey().$defaultFn(() => crypto.randomUUID()),
   createdAt: timestamp("created_at").notNull().$defaultFn(() => new Date()),
   lastUpdated: timestamp("last_updated").notNull().$defaultFn(() => new Date()),
-  rolls: text("rolls").notNull().default(""),
-  sides: integer("sides"),
+  imageBase64: text("image_base64"),
+  imageDescription: text("image_description"),
+  memory: text("memory"),
 });
 
-export const insertDiceRollSchema = createInsertSchema(diceRolls).pick({
-  rolls: true,
-  sides: true,
+export const insertMemorySchema = createInsertSchema(memories).pick({
+  sessionId: true,
 });
 
-export const updateDiceRollSchema = z.object({
-  rolls: z.string(),
-  sides: z.number().int().min(6).max(24).optional(),
+export const updateMemorySchema = z.object({
+  imageBase64: z.string().optional(),
+  imageDescription: z.string().optional(),
+  memory: z.string().optional(),
 });
 
-export type InsertDiceRoll = z.infer<typeof insertDiceRollSchema>;
-export type UpdateDiceRoll = z.infer<typeof updateDiceRollSchema>;
-export type DiceRoll = typeof diceRolls.$inferSelect;
+export type InsertMemory = z.infer<typeof insertMemorySchema>;
+export type UpdateMemory = z.infer<typeof updateMemorySchema>;
+export type Memory = typeof memories.$inferSelect;

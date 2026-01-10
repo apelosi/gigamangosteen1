@@ -176,6 +176,9 @@ Components will be added to [client/src/components/ui/](client/src/components/ui
 **Required for PostgreSQL**:
 - `NETLIFY_DATABASE_URL` - PostgreSQL connection string from Netlify Neon integration (automatically set in production, add to `.env` for local development)
 
+**Required for AI Features**:
+- `GEMINI_API_KEY` - Google Gemini API key for AI-generated kitchen memories and images (add to `.env` for local development and Netlify environment variables for production)
+
 ## Deployment
 
 **Netlify Configuration**: The project includes [netlify.toml](netlify.toml) for static site deployment.
@@ -211,7 +214,18 @@ Components will be added to [client/src/components/ui/](client/src/components/ui
   - Changing max die sides with existing tallies prompts confirmation and starts new session
   - Changing max die sides with no tallies does not require confirmation
 - **Session Lifecycle**: New sessions start on first load, hard refresh, or explicit reset
-- **Database Schema**: `dice_rolls` table with session_id (UUID), created_at, last_updated, rolls (int array), sides (int set after first roll)
+- **Database Schema**: `dice_rolls` table with session_id (UUID), created_at, last_updated, rolls (int array), sides (int set after first roll), imageBase64 (text), imageDescription (text), memory (text)
+
+### AI-Generated Kitchen Memories
+- **Google Gemini Integration**: Uses Gemini 2.0-flash-exp for text generation and Imagen-3.0-generate-001 for image generation
+- **Kitchen Object Images**: Each dice roll generates a 256x256px cartoonish image of a random kitchen object (23 objects: rolling pin, whisk, spatula, etc.)
+- **Nostalgic Memories**: Generates fictional personal memories about the kitchen object with specific details and emotions
+- **Image Descriptions**: Provides text descriptions of the generated images
+- **Database Storage**: All three pieces (base64 image, description, memory) are saved to the dice_rolls table
+- **Display**: New columns shown in the database debug table at bottom of page
+- **Error Handling**: Graceful degradation - dice rolls continue to work even if Gemini API fails
+- **Implementation**: Integrated into both Express routes ([server/routes.ts](server/routes.ts)) and Netlify serverless functions ([netlify/functions/api.ts](netlify/functions/api.ts))
+- **Service Module**: [server/gemini.ts](server/gemini.ts) contains the core AI generation logic
 
 ## Outstanding Issues
 
@@ -224,3 +238,4 @@ None currently.
 - 2026-01-09: Successfully set up Neon DB via Netlify CLI (v23.12.0 with --assume-no flag), pushed schema, created .env file, verified database persistence
 - 2026-01-09: Standardized environment variable to use `NETLIFY_DATABASE_URL` consistently across all environments (local and production)
 - 2026-01-10: Removed unnecessary users table and fixed PostgreSQL storage using Pool connection instead of neon-http, added dotenv for production .env loading
+- 2026-01-10: Added Google Gemini AI integration - generates 256x256px cartoonish kitchen object images, nostalgic memories, and descriptions on each dice roll, stored in database and displayed in debug table

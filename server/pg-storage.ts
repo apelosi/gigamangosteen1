@@ -1,8 +1,8 @@
 import { drizzle } from "drizzle-orm/neon-serverless";
 import { Pool } from "@neondatabase/serverless";
 import type { IStorage } from "./storage";
-import type { DiceRoll, InsertDiceRoll, UpdateDiceRoll } from "@shared/schema";
-import { diceRolls } from "@shared/schema";
+import type { Memory, InsertMemory, UpdateMemory } from "@shared/schema";
+import { memories } from "@shared/schema";
 import { eq } from "drizzle-orm";
 import * as schema from "@shared/schema";
 
@@ -14,25 +14,34 @@ export class PostgresStorage implements IStorage {
     this.db = drizzle(pool, { schema });
   }
 
-  async getDiceRoll(sessionId: string): Promise<DiceRoll | undefined> {
-    const result = await this.db.select().from(diceRolls).where(eq(diceRolls.sessionId, sessionId));
+  async getMemory(sessionId: string): Promise<Memory | undefined> {
+    const result = await this.db.select().from(memories).where(eq(memories.sessionId, sessionId));
     return result[0];
   }
 
-  async createDiceRoll(insertDiceRoll: InsertDiceRoll): Promise<DiceRoll> {
-    const result = await this.db.insert(diceRolls).values(insertDiceRoll).returning();
-    return result[0];
-  }
-
-  async updateDiceRoll(sessionId: string, updateDiceRoll: UpdateDiceRoll): Promise<DiceRoll | undefined> {
+  async getAllMemories(): Promise<Memory[]> {
     const result = await this.db
-      .update(diceRolls)
+      .select()
+      .from(memories)
+      .orderBy(memories.lastUpdated);
+    return result.reverse(); // Most recent first
+  }
+
+  async createMemory(insertMemory: InsertMemory): Promise<Memory> {
+    const result = await this.db.insert(memories).values(insertMemory).returning();
+    return result[0];
+  }
+
+  async updateMemory(sessionId: string, updateMemory: UpdateMemory): Promise<Memory | undefined> {
+    const result = await this.db
+      .update(memories)
       .set({
-        rolls: updateDiceRoll.rolls,
-        sides: updateDiceRoll.sides,
+        imageBase64: updateMemory.imageBase64,
+        imageDescription: updateMemory.imageDescription,
+        memory: updateMemory.memory,
         lastUpdated: new Date(),
       })
-      .where(eq(diceRolls.sessionId, sessionId))
+      .where(eq(memories.sessionId, sessionId))
       .returning();
     return result[0];
   }
