@@ -39,14 +39,14 @@ export async function registerRoutes(
     }
   });
 
-  // Get a memory session by ID
-  app.get("/api/memories/:sessionId", async (req, res) => {
+  // Get a memory by ID
+  app.get("/api/memories/:id", async (req, res) => {
     try {
       const storage = await getStorage();
-      const { sessionId } = req.params;
-      const memory = await storage.getMemory(sessionId);
+      const { id } = req.params;
+      const memory = await storage.getMemory(id);
       if (!memory) {
-        res.status(404).json({ message: "Session not found" });
+        res.status(404).json({ message: "Memory not found" });
         return;
       }
       res.json(memory);
@@ -56,22 +56,22 @@ export async function registerRoutes(
   });
 
   // Generate memory with Gemini
-  app.post("/api/memories/:sessionId/generate", async (req, res) => {
+  app.post("/api/memories/:id/generate", async (req, res) => {
     try {
       const storage = await getStorage();
-      const { sessionId } = req.params;
+      const { id } = req.params;
 
       // Generate kitchen memory with Gemini
       try {
         const kitchenMemory = await generateKitchenMemory();
-        const memory = await storage.updateMemory(sessionId, {
+        const memory = await storage.updateMemory(id, {
           imageBase64: kitchenMemory.imageBase64,
           imageDescription: kitchenMemory.imageDescription,
           memory: kitchenMemory.memory,
         });
 
         if (!memory) {
-          res.status(404).json({ message: "Session not found" });
+          res.status(404).json({ message: "Memory not found" });
           return;
         }
         res.json(memory);
@@ -86,15 +86,15 @@ export async function registerRoutes(
   });
 
   // Update memory (for editing the memory text)
-  app.patch("/api/memories/:sessionId", async (req, res) => {
+  app.patch("/api/memories/:id", async (req, res) => {
     try {
       const storage = await getStorage();
-      const { sessionId } = req.params;
+      const { id } = req.params;
       const validatedData = updateMemorySchema.parse(req.body);
 
-      const memory = await storage.updateMemory(sessionId, validatedData);
+      const memory = await storage.updateMemory(id, validatedData);
       if (!memory) {
-        res.status(404).json({ message: "Session not found" });
+        res.status(404).json({ message: "Memory not found" });
         return;
       }
       res.json(memory);

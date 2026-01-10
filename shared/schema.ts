@@ -1,10 +1,11 @@
 import { sql } from "drizzle-orm";
-import { pgTable, varchar, timestamp, integer, text } from "drizzle-orm/pg-core";
+import { pgTable, varchar, timestamp, text, uuid } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
 export const memories = pgTable("memories", {
-  sessionId: varchar("session_id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  id: uuid("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  sessionId: varchar("session_id").notNull(),
   createdAt: timestamp("created_at").notNull().$defaultFn(() => new Date()),
   lastUpdated: timestamp("last_updated").notNull().$defaultFn(() => new Date()),
   imageBase64: text("image_base64"),

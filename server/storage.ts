@@ -3,10 +3,11 @@ import { randomUUID } from "crypto";
 
 export interface IStorage {
   // Memory methods
-  getMemory(sessionId: string): Promise<Memory | undefined>;
+  getMemory(id: string): Promise<Memory | undefined>;
+  getMemoriesBySession(sessionId: string): Promise<Memory[]>;
   getAllMemories(): Promise<Memory[]>;
   createMemory(memory: InsertMemory): Promise<Memory>;
-  updateMemory(sessionId: string, memory: UpdateMemory): Promise<Memory | undefined>;
+  updateMemory(id: string, memory: UpdateMemory): Promise<Memory | undefined>;
 }
 
 export class MemStorage implements IStorage {
@@ -16,8 +17,14 @@ export class MemStorage implements IStorage {
     this.memories = new Map();
   }
 
-  async getMemory(sessionId: string): Promise<Memory | undefined> {
-    return this.memories.get(sessionId);
+  async getMemory(id: string): Promise<Memory | undefined> {
+    return this.memories.get(id);
+  }
+
+  async getMemoriesBySession(sessionId: string): Promise<Memory[]> {
+    return Array.from(this.memories.values())
+      .filter((m) => m.sessionId === sessionId)
+      .sort((a, b) => b.lastUpdated.getTime() - a.lastUpdated.getTime());
   }
 
   async getAllMemories(): Promise<Memory[]> {
@@ -27,9 +34,11 @@ export class MemStorage implements IStorage {
   }
 
   async createMemory(insertMemory: InsertMemory): Promise<Memory> {
-    const sessionId = insertMemory.sessionId || randomUUID();
+    const id = randomUUID();
+    const sessionId = insertMemory.sessionId;
     const now = new Date();
     const memory: Memory = {
+      id,
       sessionId,
       createdAt: now,
       lastUpdated: now,
@@ -37,12 +46,12 @@ export class MemStorage implements IStorage {
       imageDescription: null,
       memory: null,
     };
-    this.memories.set(sessionId, memory);
+    this.memories.set(id, memory);
     return memory;
   }
 
-  async updateMemory(sessionId: string, updateMemory: UpdateMemory): Promise<Memory | undefined> {
-    const existing = this.memories.get(sessionId);
+  async updateMemory(id: string, updateMemory: UpdateMemory): Promise<Memory | undefined> {
+    const existing = this.memories.get(id);
     if (!existing) {
       return undefined;
     }
@@ -53,7 +62,7 @@ export class MemStorage implements IStorage {
       memory: updateMemory.memory !== undefined ? updateMemory.memory : existing.memory,
       lastUpdated: new Date(),
     };
-    this.memories.set(sessionId, updated);
+    this.memories.set(id, updated);
     return updated;
   }
 }

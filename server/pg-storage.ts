@@ -14,9 +14,18 @@ export class PostgresStorage implements IStorage {
     this.db = drizzle(pool, { schema });
   }
 
-  async getMemory(sessionId: string): Promise<Memory | undefined> {
-    const result = await this.db.select().from(memories).where(eq(memories.sessionId, sessionId));
+  async getMemory(id: string): Promise<Memory | undefined> {
+    const result = await this.db.select().from(memories).where(eq(memories.id, id));
     return result[0];
+  }
+
+  async getMemoriesBySession(sessionId: string): Promise<Memory[]> {
+    const result = await this.db
+      .select()
+      .from(memories)
+      .where(eq(memories.sessionId, sessionId))
+      .orderBy(memories.lastUpdated);
+    return result.reverse(); // Most recent first
   }
 
   async getAllMemories(): Promise<Memory[]> {
@@ -32,7 +41,7 @@ export class PostgresStorage implements IStorage {
     return result[0];
   }
 
-  async updateMemory(sessionId: string, updateMemory: UpdateMemory): Promise<Memory | undefined> {
+  async updateMemory(id: string, updateMemory: UpdateMemory): Promise<Memory | undefined> {
     const result = await this.db
       .update(memories)
       .set({
@@ -41,7 +50,7 @@ export class PostgresStorage implements IStorage {
         memory: updateMemory.memory,
         lastUpdated: new Date(),
       })
-      .where(eq(memories.sessionId, sessionId))
+      .where(eq(memories.id, id))
       .returning();
     return result[0];
   }
