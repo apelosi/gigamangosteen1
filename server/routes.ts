@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { getStorage } from "./storage";
 import { insertObjectMemorySchema, updateObjectMemorySchema } from "@shared/schema";
 import { fromError } from "zod-validation-error";
-import { generateKitchenMemory } from "./gemini";
+import { generateKitchenMemory, describeImageForMatching, findMatchingDescription } from "./gemini";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -157,6 +157,73 @@ export async function registerRoutes(
       } else {
         res.status(500).json({ message: "Internal server error" });
       }
+    }
+  });
+
+  // Remember feature - match an image against saved memories
+  app.post("/api/remember/match", async (req, res) => {
+    try {
+      const { imageBase64 } = req.body;
+
+      if (!imageBase64) {
+        res.status(400).json({ message: "imageBase64 is required" });
+        return;
+      }
+
+      // Step 1: Generate description of the new image
+      const descriptionResult = await describeImageForMatching(imageBase64);
+      const newDescription = descriptionResult.objectDescription;
+
+      // Step 2: Get all saved memories from database
+      const storage = await getStorage();
+      const allMemories = await storage.getAllObjectMemories();
+
+      // Filter to only memories that have descriptions
+      const memoriesWithDescriptions = allMemories
+        .filter(m => m.objectDescription && m.objectDescription.trim().length > 0)
+        .map(m => ({
+          id: m.id,
+          description: m.objectDescription!
+        }));
+
+      if (memoriesWithDescriptions.length === 0) {
+        // No saved memories to match against
+        res.json({
+          found: false,
+          description: newDescription
+        });
+        return;
+      }
+
+      // Step 3: Use AI to find matching description
+      const matchResult = await findMatchingDescription(newDescription, memoriesWithDescriptions);
+
+      if (matchResult.matched && matchResult.matchedId) {
+        // Found a match - get the full memory record
+        const matchedMemory = allMemories.find(m => m.id === matchResult.matchedId);
+        if (matchedMemory) {
+          res.json({
+            found: true,
+            description: newDescription,
+            matchedMemory: {
+              id: matchedMemory.id,
+              objectDescription: matchedMemory.objectDescription,
+              objectMemory: matchedMemory.objectMemory,
+              userImageBase64: matchedMemory.userImageBase64
+            }
+          });
+          return;
+        }
+      }
+
+      // No match found
+      res.json({
+        found: false,
+        description: newDescription
+      });
+    } catch (error: any) {
+      console.error("Error matching object:", error);
+      res.status(500).json({ message: "Failed to match object", error: error.message });
     }
   });
 
